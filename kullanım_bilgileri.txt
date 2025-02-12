@@ -1,0 +1,2 @@
+python main.py ile basatılır
+eger girilen bilgilerin baş harfi büyük değil ise kaydettiği dosya bos olur dogru calışması için girilen il ve ilçenin baş harfinin büyük olması gerekir
