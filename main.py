@@ -5,6 +5,6 @@ if __name__ == "__main__":
     district = input("İlçe adı girin (boş bırakabilirsiniz): ").strip()
 
     if district == "":
-        district = None  # Eğer ilçe girilmezse None olarak ayarla
+        district = None  
     
     save_restaurants_to_csv(city, district)

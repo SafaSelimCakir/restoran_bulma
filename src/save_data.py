@@ -4,7 +4,7 @@ from src.fetch_osm import get_restaurants
 from config.settings import DATA_DIR
 
 def save_restaurants_to_csv(city, district=None):
-    """Restoran bilgilerini CSV dosyasına kaydeder. Eğer ilçe girilmezse, il bazlı listeleme yapar."""
+    
     
     data = get_restaurants(city, district)
     
@@ -14,10 +14,10 @@ def save_restaurants_to_csv(city, district=None):
     restaurants = []
     for element in data["elements"]:
         tags = element.get("tags", {})
-        name = tags.get("name", "Bilinmiyor")
-        address = tags.get("addr:street", "Adres yok")
-        phone = tags.get("contact:phone", tags.get("phone", "Numara yok"))
-        email = tags.get("contact:email", tags.get("email", "E-posta yok"))
+        name = tags.get("name", " --- ")
+        address = tags.get("addr:street", " --- ")
+        phone = tags.get("contact:phone", tags.get("phone", " --- "))
+        email = tags.get("contact:email", tags.get("email", " --- "))
         
         restaurants.append({
             "İsim": name,
@@ -26,11 +26,9 @@ def save_restaurants_to_csv(city, district=None):
             "E-posta": email
         })
     
-    # Klasör yoksa oluştur
     if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR)
 
-    # Dosya adını ilçe var mı yok mu ona göre belirle
     if district:
         csv_path = f"{DATA_DIR}{city}_{district}_restoranlar.csv"
     else:

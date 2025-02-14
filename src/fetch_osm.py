@@ -2,10 +2,9 @@ import requests
 from config.settings import OVERPASS_API_URL
 
 def get_restaurants(city, district=None):
-    """OSM üzerinden restoran bilgilerini getirir. Eğer ilçe girilmezse, tüm şehirdeki restoranları getirir."""
+    
     
     if district:
-        # İl ve ilçe bazlı sorgu
         query = f"""
         [out:json];
         area[name="{city}"]->.city;
@@ -18,7 +17,6 @@ def get_restaurants(city, district=None):
         out center;
         """
     else:
-        # Sadece il bazlı sorgu (ilçe girilmezse)
         query = f"""
         [out:json];
         area[name="{city}"]->.city;
