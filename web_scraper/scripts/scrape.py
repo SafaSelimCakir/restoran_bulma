@@ -1,72 +1,108 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 import pandas as pd
-import re
-from urllib.request import urlopen
-from bs4 import BeautifulSoup
 
-# Önceki adımda toplanan verileri oku
-df = pd.read_csv("Kocaeli_Başiskele_restoranlar.csv")
-restaurant_names = df["Restoran Adı"].tolist()
+# Kullanıcıdan şehir ve ilçe bilgisi al
+city = input("Bir İl Gir: ")
+district = input("Bir İlçe Gir: ")
 
-# Chrome sürücüsünü başlat
+# WebDriver'ı başlat
 driver = webdriver.Chrome()
-driver.get('https://www.yemeksepeti.com')
+driver.get('https://www.google.com/maps')
 
-# Yemek Sepeti’nde restoranları ara ve e-posta bul
-restaurant_data_with_email = []
+# Arama kutusuna restoran araması yap
+search_query = f"{city} {district} restoranlar"
+search_box = driver.find_element(By.ID, 'searchboxinput')
+search_box.send_keys(search_query)
+search_box.send_keys(Keys.RETURN)
 
-for name in restaurant_names:
+time.sleep(5)  # Sonuçların yüklenmesini bekle
+
+# Sayfa kaydırma fonksiyonu (Tüm restoranları yüklemek için)
+def scroll_until_all_restaurants_loaded():
+    scrollable_div = driver.find_element(By.CSS_SELECTOR, 'div.m6QErb.DxyBCb.kA9KIf.dS8AEf.ecceSd')
+    last_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
+    current_restaurant_count = len(driver.find_elements(By.CSS_SELECTOR, '.Nv2PK'))  # Başlangıçtaki restoran sayısı
+
+    while True:
+        driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
+        time.sleep(2)  # Yükleme süresi bekleniyor
+        new_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
+
+        new_restaurant_count = len(driver.find_elements(By.CSS_SELECTOR, '.Nv2PK'))  # Yeni restoran sayısı
+        
+        if new_restaurant_count == current_restaurant_count:  # Eğer restoran sayısı değişmediyse döngüyü bitir
+            break
+        
+        current_restaurant_count = new_restaurant_count  # Restoran sayısını güncelle
+        last_height = new_height  # Sayfa yüksekliğini güncelle
+
+# Restoranları tamamen yükle
+scroll_until_all_restaurants_loaded()
+
+# Tüm restoranları çek
+restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
+restaurant_data = []  # Verileri saklayacağımız liste
+
+for i, restaurant in enumerate(restaurants):
     try:
-        search_box = driver.find_element(By.ID, 'search-term-global')
-        search_box.clear()
-        search_box.send_keys(name + " Kocaeli Başiskele")
-        search_box.send_keys(Keys.RETURN)
-        time.sleep(3)
-
-        # Restoran profiline git
+        ActionChains(driver).move_to_element(restaurant).perform()  # Restorana git
+        restaurant.click()  # Restoranı aç
+        time.sleep(5)  # Bilgilerin yüklenmesini bekle
+        
+        # Restoran ismini al
         try:
-            restaurant_link = driver.find_element(By.XPATH, "//a[contains(@class, 'restaurant-name')]")
-            restaurant_link.click()
-            time.sleep(3)
+            name_element = driver.find_element(By.XPATH, "//h1[@class='DUwDvf lfPIob']")
+            restaurant_name = name_element.text
         except:
-            print(f"{name} için Yemek Sepeti’nde profil bulunamadı.")
-            restaurant_data_with_email.append({"Restoran Adı": name, "E-posta": "Bulunamadı"})
-            continue
-
-        # Web sitesi bağlantısını kontrol et
-        email = "Bulunamadı"
+            restaurant_name = "Restoran adı bulunamadı"
+        
+        # Adresi al
         try:
-            website_link = driver.find_element(By.XPATH, "//a[contains(@href, 'http')]")
-            website_url = website_link.get_attribute('href')
-            
-            # Web sitesinden e-posta kazı
-            response = urlopen(website_url)
-            soup = BeautifulSoup(response, 'html.parser')
-            text = soup.get_text()
-            email_pattern = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
-            emails = email_pattern.findall(text)
-            email = emails[0] if emails else "Bulunamadı"
+            address_element = driver.find_element(By.XPATH, "//span[text()='']/ancestor::div[@class='AeaXub']//div[@class='Io6YTe fontBodyMedium kR99db fdkmkc ']")
+            address = address_element.text
         except:
-            pass
+            address = "Adres bulunamadı"
+        
+        # Telefon numarasını al
+        try:
+            phone_element = driver.find_element(By.XPATH, "//span[text()='']/ancestor::div[@class='AeaXub']//div[@class='Io6YTe fontBodyMedium kR99db fdkmkc ']")
+            phone_number = phone_element.text
+        except:
+            phone_number = "Telefon bulunamadı"
+        
+        # Sonuçları listeye ekle
+        restaurant_data.append({
+            "Restoran Adı": restaurant_name,
+            "Adres": address,
+            "Telefon": phone_number
+        })
+        
+        print("\n------------------------------------")
+        print(f"{i+1}. Restoran")
+        print("Restoran Adı:", restaurant_name)
+        print("Adres:", address)
+        print("Telefon Numarası:", phone_number)
+        print("------------------------------------\n")
 
-        restaurant_data_with_email.append({"Restoran Adı": name, "E-posta": email})
-        print(f"{name}: {email}")
-
-        driver.get('https://www.yemeksepeti.com')
-        time.sleep(3)
+        # Geri tuşuna basarak listeye dön
+        driver.execute_script("window.history.go(-1)")
+        time.sleep(5)  # Liste sayfasının yüklenmesini bekle
+        
+        # Listeyi tekrar çek (bazı öğeler kaybolabiliyor)
+        restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
 
     except Exception as e:
-        print(f"Hata oluştu ({name}): {str(e)}")
-        restaurant_data_with_email.append({"Restoran Adı": name, "E-posta": "Bulunamadı"})
+        print("Hata oluştu:", str(e))
         continue
 
-# Sürücüyü kapat
+# WebDriver'ı kapat
 driver.quit()
 
-# Verileri CSV’ye kaydet
-df_emails = pd.DataFrame(restaurant_data_with_email)
-df_emails.to_csv("Kocaeli_Başiskele_restoranlar_emails.csv", index=False, encoding="utf-8")
-print("Yemek Sepeti verileri CSV dosyasına kaydedildi.")
+# Çıktıyı CSV dosyasına kaydetmek istersen:
+df = pd.DataFrame(restaurant_data)
+df.to_csv(f"{city}_{district}_restoranlar.csv", index=False, encoding="utf-8")
+print("Veriler CSV dosyasına kaydedildi.")
