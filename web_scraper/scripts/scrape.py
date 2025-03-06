@@ -1,131 +1,72 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import time
 import pandas as pd
+import re
+from urllib.request import urlopen
+from bs4 import BeautifulSoup
 
-# Kullanıcıdan şehir ve ilçe bilgisi al
-city = input("Bir İl Gir: ")
-district = input("Bir İlçe Gir: ")
+# Önceki adımda toplanan verileri oku
+df = pd.read_csv("Kocaeli_Başiskele_restoranlar.csv")
+restaurant_names = df["Restoran Adı"].tolist()
 
-# WebDriver'ı başlat
+# Chrome sürücüsünü başlat
 driver = webdriver.Chrome()
-driver.get('https://www.google.com/maps')
+driver.get('https://www.yemeksepeti.com')
 
-# Arama kutusuna restoran araması yap
-search_query = f"{city} {district} restoranlar"
-search_box = driver.find_element(By.ID, 'searchboxinput')
-search_box.send_keys(search_query)
-search_box.send_keys(Keys.RETURN)
+# Yemek Sepeti’nde restoranları ara ve e-posta bul
+restaurant_data_with_email = []
 
-# Arama sonuçlarının yüklenmesini bekle
-WebDriverWait(driver, 10).until(
-    EC.presence_of_element_located((By.CSS_SELECTOR, '.Nv2PK'))
-)
-
-# Sayfa kaydırma fonksiyonu (Tüm restoranları yüklemek için)
-def scroll_until_all_restaurants_loaded():
-    scrollable_div = driver.find_element(By.XPATH, '//div[contains(@class, "m6QErb") and contains(@class, "DxyBCb")]')
-    previous_count = 0
-    max_attempts = 20  # Maksimum kaydırma denemesi (sonsuz döngüyü önlemek için)
-    attempt = 0
-
-    while attempt < max_attempts:
-        driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
-        time.sleep(3)  # Yeni içeriklerin yüklenmesini bekle
-        
-        current_count = len(driver.find_elements(By.CSS_SELECTOR, '.Nv2PK'))
-        print(f"Şu anda yüklenen restoran sayısı: {current_count}")
-        
-        if current_count == previous_count and current_count > 0:  # Yeni restoran yüklenmediyse
-            break
-        
-        previous_count = current_count
-        attempt += 1
-
-# Tüm restoranları yükle
-print("Restoranlar yükleniyor...")
-scroll_until_all_restaurants_loaded()
-
-# Tüm restoranları çek
-restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
-restaurant_data = []  # Verileri saklayacağımız liste
-processed_restaurants = set()  # Tekrarları önlemek için bir küme
-
-print(f"Toplam {len(restaurants)} restoran bulundu. Veri çekimi başlıyor...")
-
-for i in range(len(restaurants)):
+for name in restaurant_names:
     try:
-        # Her döngüde restoran listesini yeniden al
-        restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
-        restaurant = restaurants[i]
-        
-        # Restoran adına göre tekrar kontrolü
-        restaurant_name_element = restaurant.find_element(By.CSS_SELECTOR, '.fontHeadlineSmall')
-        restaurant_name = restaurant_name_element.text.strip()
-        if restaurant_name in processed_restaurants:
-            continue
-        
-        ActionChains(driver).move_to_element(restaurant).perform()  # Restorana git
-        restaurant.click()  # Restoranı aç
-        time.sleep(3)  # Bilgilerin yüklenmesini bekle
-        
-        # Restoran ismini al
-        try:
-            name_element = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.XPATH, "//h1[@class='DUwDvf lfPIob']"))
-            )
-            restaurant_name = name_element.text
-        except:
-            restaurant_name = "Restoran adı bulunamadı"
-        
-        # Adresi al
-        try:
-            address_element = driver.find_element(By.XPATH, "//div[contains(@class, 'Io6YTe') and contains(text(), ',')]")
-            address = address_element.text
-        except:
-            address = "Adres bulunamadı"
-        
-        # Telefon numarasını al
-        try:
-            phone_element = driver.find_element(By.XPATH, "//div[contains(@class, 'Io6YTe') and contains(text(), '+')]")
-            phone_number = phone_element.text
-        except:
-            phone_number = "Telefon bulunamadı"
-        
-        # Sonuçları listeye ekle
-        restaurant_data.append({
-            "Restoran Adı": restaurant_name,
-            "Adres": address,
-            "Telefon": phone_number
-        })
-        processed_restaurants.add(restaurant_name)
-        
-        print("\n------------------------------------")
-        print(f"{i+1}. Restoran")
-        print("Restoran Adı:", restaurant_name)
-        print("Adres:", address)
-        print("Telefon Numarası:", phone_number)
-        print("------------------------------------\n")
+        search_box = driver.find_element(By.ID, 'search-term-global')
+        search_box.clear()
+        search_box.send_keys(name + " Kocaeli Başiskele")
+        search_box.send_keys(Keys.RETURN)
+        time.sleep(3)
 
-        # Geri tuşuna basarak listeye dön
-        driver.execute_script("window.history.go(-1)")
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, '.Nv2PK'))
-        )
-        time.sleep(2)  # Liste sayfasının yüklenmesini bekle
+        # Restoran profiline git
+        try:
+            restaurant_link = driver.find_element(By.XPATH, "//a[contains(@class, 'restaurant-name')]")
+            restaurant_link.click()
+            time.sleep(3)
+        except:
+            print(f"{name} için Yemek Sepeti’nde profil bulunamadı.")
+            restaurant_data_with_email.append({"Restoran Adı": name, "E-posta": "Bulunamadı"})
+            continue
+
+        # Web sitesi bağlantısını kontrol et
+        email = "Bulunamadı"
+        try:
+            website_link = driver.find_element(By.XPATH, "//a[contains(@href, 'http')]")
+            website_url = website_link.get_attribute('href')
+            
+            # Web sitesinden e-posta kazı
+            response = urlopen(website_url)
+            soup = BeautifulSoup(response, 'html.parser')
+            text = soup.get_text()
+            email_pattern = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
+            emails = email_pattern.findall(text)
+            email = emails[0] if emails else "Bulunamadı"
+        except:
+            pass
+
+        restaurant_data_with_email.append({"Restoran Adı": name, "E-posta": email})
+        print(f"{name}: {email}")
+
+        driver.get('https://www.yemeksepeti.com')
+        time.sleep(3)
 
     except Exception as e:
-        print(f"Hata oluştu (Restoran {i+1}): {str(e)}")
+        print(f"Hata oluştu ({name}): {str(e)}")
+        restaurant_data_with_email.append({"Restoran Adı": name, "E-posta": "Bulunamadı"})
         continue
 
-# WebDriver'ı kapat
+# Sürücüyü kapat
 driver.quit()
 
-# Çıktıyı CSV dosyasına kaydet
-df = pd.DataFrame(restaurant_data)
-df.to_csv(f"{city}_{district}_restoranlar.csv", index=False, encoding="utf-8")
-print(f"Toplam {len(restaurant_data)} restoran CSV dosyasına kaydedildi.")
+# Verileri CSV’ye kaydet
+df_emails = pd.DataFrame(restaurant_data_with_email)
+df_emails.to_csv("Kocaeli_Başiskele_restoranlar_emails.csv", index=False, encoding="utf-8")
+print("Yemek Sepeti verileri CSV dosyasına kaydedildi.")
