@@ -1,5 +1,5 @@
+import os
 import time
-import random
 import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -8,67 +8,116 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-# Kullanıcıdan il ve ilçe bilgisi al
-sehir = input("Şehir girin: ")
-ilce = input("İlçe girin: ")
+# 🚀 Tarayıcıyı başlat
+def start_driver():
+    options = webdriver.ChromeOptions()
+    options.add_argument("--start-maximized")  # Tam ekran aç
+    options.add_argument("--disable-blink-features=AutomationControlled")  # Bot algılamayı azaltır
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
 
-# Google Maps URL
-url = f"https://www.google.com/maps/search/{sehir}+{ilce}+restoranlar"
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    return driver
 
-# Selenium ayarları
-options = webdriver.ChromeOptions()
-options.add_argument("--headless")  # Headless mode
-options.add_argument("--disable-gpu")
-options.add_argument("--no-sandbox")
-options.add_argument("--disable-dev-shm-usage")
-options.add_argument("--disable-blink-features=AutomationControlled")
-options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
-options.add_experimental_option("excludeSwitches", ["enable-automation"])
-options.add_experimental_option("useAutomationExtension", False)
+# 🔍 Google Maps'ten restoranları çek
+def get_restaurants(city, district=None):
+    driver = start_driver()
+    
+    search_query = f"{city} {district} restoran" if district else f"{city} restoran"
+    maps_url = f"https://www.google.com/maps/search/{search_query}"
+    
+    driver.get(maps_url)
+    time.sleep(5)
 
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    restaurants = []
 
-# Sayfayı yükle
-driver.get(url)
+    while True:
+        try:
+            restaurant_elements = driver.find_elements(By.XPATH, "//div[contains(@class, 'Nv2PK')]")
+            if not restaurant_elements:
+                print("❌ Hiç restoran bulunamadı!")
+                break
 
-# Sayfa yüklenene kadar bekle
-try:
-    WebDriverWait(driver, 60).until(
-        EC.presence_of_all_elements_located((By.XPATH, "//div[contains(@class, 'hfpxzc')]"))
-    )
-except Exception as e:
-    print("Arama sonuçları yüklenirken hata oluştu:", e)
+            for element in restaurant_elements:
+                try:
+                    name = element.find_element(By.CLASS_NAME, "qBF1Pd").text
+
+                    try:
+                        address = element.find_element(By.CLASS_NAME, "Io6YTe").text
+                    except:
+                        address = "Adres Bulunamadı"
+
+                    try:
+                        rating = element.find_element(By.CLASS_NAME, "MW4etd").text
+                    except:
+                        rating = "Bilinmiyor"
+
+                    try:
+                        review_count = element.find_element(By.CLASS_NAME, "UY7F9").text.replace("(", "").replace(")", "")
+                    except:
+                        review_count = "Bilinmiyor"
+
+                    # 🔗 Restoran detay sayfasına gir
+                    element.click()
+                    time.sleep(3)
+
+                    try:
+                        phone = driver.find_element(By.XPATH, "//button[contains(@data-item-id, 'phone')]").text
+                    except:
+                        phone = "Telefon Bulunamadı"
+
+                    try:
+                        email = driver.find_element(By.XPATH, "//a[contains(@href, 'mailto:')]").text
+                    except:
+                        email = "E-posta Bulunamadı"
+
+                    # 🚀 Sonuçları kaydet
+                    restaurants.append({
+                        "İsim": name,
+                        "Adres": address,
+                        "Telefon": phone,
+                        "E-posta": email,
+                        "Puan": rating,
+                        "Yorum Sayısı": review_count
+                    })
+
+                    print(f"✅ {name} eklendi!")
+
+                except Exception as e:
+                    print(f"⚠️ Hata: {e}")
+
+            # 📜 Sayfanın sonuna gelindi mi?
+            scrollable_div = driver.find_element(By.XPATH, "//div[contains(@class, 'm6QErb')]")
+            driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight;", scrollable_div)
+            time.sleep(3)
+            
+            new_restaurants = driver.find_elements(By.XPATH, "//div[contains(@class, 'Nv2PK')]")
+            if len(new_restaurants) == len(restaurant_elements):
+                print("🚀 Tüm restoranlar yüklendi!")
+                break
+
+        except Exception as e:
+            print(f"❌ Bir hata oluştu: {e}")
+            break
+
     driver.quit()
-    exit()
+    return restaurants
 
-# Restoran bilgilerini al
-restaurants = []
-results = driver.find_elements(By.XPATH, "//div[contains(@class, 'Nv2PK')]")
+# 📂 CSV'ye kaydet
+def save_to_csv(restaurants, city, district):
+    filename = f"{city}_{district}_restoranlar.csv" if district else f"{city}_tum_restoranlar.csv"
+    df = pd.DataFrame(restaurants)
+    df.to_csv(filename, index=False, encoding="utf-8")
+    print(f"✔️ {filename} başarıyla kaydedildi!")
 
-for result in results:
-    try:
-        name = result.find_element(By.XPATH, ".//h3").text
-    except Exception:
-        name = "Bilinmiyor"
+# 🔥 Kod Başlatma
+if __name__ == "__main__":
+    city = input("Şehir adı girin: ")
+    district = input("İlçe adı girin (boş bırakabilirsiniz): ")
 
-    try:
-        address = result.find_element(By.XPATH, ".//span[@class='rllt__details']").text
-    except Exception:
-        address = "Bilinmiyor"
-
-    try:
-        review = result.find_element(By.XPATH, ".//span[contains(@class, 'e5lbc') or contains(@class, 'z3sf')]").text
-    except Exception:
-        review = "Bilinmiyor"
-
-    restaurants.append([name, address, review])
-
-driver.quit()
-
-# Verileri CSV'ye kaydet
-if restaurants:
-    df = pd.DataFrame(restaurants, columns=["İsim", "Adres", "Yorum ve Puan"])
-    df.to_csv("restoranlar.csv", index=False, encoding="utf-8")
-    print("Restoran bilgileri 'restoranlar.csv' dosyasına kaydedildi.")
-else:
-    print("Hiçbir restoran bilgisi çekilemedi.")
+    restaurants = get_restaurants(city, district)
+    
+    if restaurants:
+        save_to_csv(restaurants, city, district)
+    else:
+        print("❌ Hiç restoran bulunamadı.")
