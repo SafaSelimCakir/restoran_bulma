@@ -1,6 +1,9 @@
-Restoran Adı,Adres,Telefon
-AliBaba Kocaeli,"Körfez, Liman Cd. No:54, 41245 Başiskele/Kocaeli",0537 501 03 49
-AliBaba Kocaeli,"Körfez, Liman Cd. No:54, 41245 Başiskele/Kocaeli",0537 501 03 49
-Satuti Restaurant Cafe,"Kılıçarslan Mh, Bahçecik, Hürriyet Cd. No:127/2, 41090 Başiskele/Kocaeli",(0262) 412 41 41
-Yeşildağlar Et,"D-130 KARAYOLU CADDESİ NO:183, 41030 Başiskele/Kocaeli",(0262) 343 43 46
-Bilgiçler Et Köfte - Başiskele,"Körfez mah. D-130 Karayolu cad. No: 119, 41245 Başiskele/Kocaeli",(0262) 343 36 36
+Restoran Adı,Adres,Telefon,Link
+Salash Burger Başiskele,"Salash Burger, Barbaros, Pınar Cd. 1/ A, 41090 Başiskele/Kocaeli",,https://www.google.com/maps/place/Salash+Burger+Ba%C5%9Fiskele/data=!4m7!3m6!1s0x14cb45ea2e25e64d:0x77c2e880de12e718!8m2!3d40.7103147!4d29.9244492!16s%2Fg%2F11sgxvs86l!19sChIJTeYlLupFyxQRGOcS3oDownc?authuser=0&hl=tr&rclk=1
+AliBaba Kocaeli,"Körfez, Liman Cd. No:54, 41245 Başiskele/Kocaeli",0537 501 03 49,https://www.google.com/maps/place/AliBaba+Kocaeli/data=!4m7!3m6!1s0x14cb45d7f93ed019:0x754c576a73ad8eff!8m2!3d40.7140887!4d29.9146421!16s%2Fg%2F11sj663lgg!19sChIJGdA--ddFyxQR_46tc2pXTHU?authuser=0&hl=tr&rclk=1
+Yeşildağlar Et,"D-130 KARAYOLU CADDESİ NO:183, 41030 Başiskele/Kocaeli",(0262) 343 43 46,https://www.google.com/maps/place/Ye%C5%9Filda%C4%9Flar+Et/data=!4m7!3m6!1s0x14cb445e6d314589:0x2cec06428d195c5c!8m2!3d40.7133558!4d29.9225622!16s%2Fg%2F11b_3fwx0b!19sChIJiUUxbV5EyxQRXFwZjUIG7Cw?authuser=0&hl=tr&rclk=1
+Seyir 360 Cafe Restaurant,"ışıltı sok. Mikav, Yuvacık Yakacık, mesire alanı 16/33, 41090 Başiskele/Kocaeli",0530 341 53 60,https://www.google.com/maps/place/Seyir+360+Cafe+Restaurant/data=!4m7!3m6!1s0x14cb5d1fb2372987:0x4d3d6eb308327c54!8m2!3d40.6879521!4d29.9502844!16s%2Fg%2F11sh4bwcw6!19sChIJhyk3sh9dyxQRVHwyCLNuPU0?authuser=0&hl=tr&rclk=1
+Refiye Sahil Başiskele,"Körfez, Liman Cd. No:118, 41245 Başiskele/Kocaeli",0539 655 71 82,https://www.google.com/maps/place/Refiye+Sahil+Ba%C5%9Fiskele/data=!4m7!3m6!1s0x14cb45360f9172a9:0x881fac4f182e939f!8m2!3d40.716348!4d29.921953!16s%2Fg%2F11svf9_6y3!19sChIJqXKRDzZFyxQRn5MuGE-sH4g?authuser=0&hl=tr&rclk=1
+Çınaraltı Künefe & Kahvaltı Başiskele,"Körfez, Liman Cd. No:116, 41245 Başiskele/Kocaeli",(0262) 414 61 41,https://www.google.com/maps/place/%C3%87%C4%B1naralt%C4%B1+K%C3%BCnefe+%26+Kahvalt%C4%B1+Ba%C5%9Fiskele/data=!4m7!3m6!1s0x14cb45d432b5becd:0x335fba193c4ea300!8m2!3d40.7162941!4d29.9217853!16s%2Fg%2F11tws2mz49!19sChIJzb61MtRFyxQRAKNOPBm6XzM?authuser=0&hl=tr&rclk=1
+Sinerit Restaurant,"Yuvacık Yakacık, Temel Ay Sk. No:15, 41090 Başiskele/Kocaeli",0552 541 64 25,https://www.google.com/maps/place/Sinerit+Restaurant/data=!4m7!3m6!1s0x14cb45f895ebbbab:0x1252ba41ef4644d5!8m2!3d40.6840103!4d29.9565868!16s%2Fg%2F11c40pjprf!19sChIJq7vrlfhFyxQR1URG70G6UhI?authuser=0&hl=tr&rclk=1
+Bilgiçler Et Köfte - Başiskele,"Körfez mah. D-130 Karayolu cad. No: 119, 41245 Başiskele/Kocaeli",(0262) 343 36 36,https://www.google.com/maps/place/Bilgi%C3%A7ler+Et+K%C3%B6fte+-+Ba%C5%9Fiskele/data=!4m7!3m6!1s0x14cb44695f96a585:0xfdb612eaa7487c8a!8m2!3d40.7119202!4d29.910578!16s%2Fg%2F11dyzc8f0t!19sChIJhaWWX2lEyxQRinxIp-oStv0?authuser=0&hl=tr&rclk=1

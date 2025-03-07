@@ -40,69 +40,120 @@ def scroll_until_all_restaurants_loaded():
         current_restaurant_count = new_restaurant_count  # Restoran sayısını güncelle
         last_height = new_height  # Sayfa yüksekliğini güncelle
 
-# Restoranları tamamen yükle
+# **1. AŞAMA: Restoranları tamamen yükle**
 scroll_until_all_restaurants_loaded()
 
-# Tüm restoranları çek
+# **2. AŞAMA: Restoran bağlantılarını al ve sponsorluları filtrele**
 restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
-restaurant_data = []  # Verileri saklayacağımız liste
+restaurant_links = []  # Restoran bağlantılarını saklayacağımız liste
 
-for i, restaurant in enumerate(restaurants):
+for restaurant in restaurants:
     try:
-        ActionChains(driver).move_to_element(restaurant).perform()  # Restorana git
-        restaurant.click()  # Restoranı aç
-        time.sleep(5)  # Bilgilerin yüklenmesini bekle
-        
-        # Restoran ismini al
-        try:
-            name_element = driver.find_element(By.XPATH, "//h1[@class='DUwDvf lfPIob']")
-            restaurant_name = name_element.text
-        except:
-            restaurant_name = "Restoran adı bulunamadı"
-        
-        # Adresi al
-        try:
-            address_element = driver.find_element(By.XPATH, "//span[text()='']/ancestor::div[@class='AeaXub']//div[@class='Io6YTe fontBodyMedium kR99db fdkmkc ']")
-            address = address_element.text
-        except:
-            address = "Adres bulunamadı"
-        
-        # Telefon numarasını al
-        try:
-            phone_element = driver.find_element(By.XPATH, "//span[text()='']/ancestor::div[@class='AeaXub']//div[@class='Io6YTe fontBodyMedium kR99db fdkmkc ']")
-            phone_number = phone_element.text
-        except:
-            phone_number = "Telefon bulunamadı"
-        
-        # Sonuçları listeye ekle
-        restaurant_data.append({
-            "Restoran Adı": restaurant_name,
-            "Adres": address,
-            "Telefon": phone_number
-        })
-        
-        print("\n------------------------------------")
-        print(f"{i+1}. Restoran")
-        print("Restoran Adı:", restaurant_name)
-        print("Adres:", address)
-        print("Telefon Numarası:", phone_number)
-        print("------------------------------------\n")
+        # **Sponsorlu restoranları kontrol et**
+        if restaurant.find_elements(By.CSS_SELECTOR, '.HlvSq'):  # Google sponsor etiketi (varsa)
+            continue  # Sponsorluları atla
 
-        # Geri tuşuna basarak listeye dön
-        driver.execute_script("window.history.go(-1)")
-        time.sleep(5)  # Liste sayfasının yüklenmesini bekle
-        
-        # Listeyi tekrar çek (bazı öğeler kaybolabiliyor)
-        restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
-
-    except Exception as e:
-        print("Hata oluştu:", str(e))
+        link = restaurant.find_element(By.TAG_NAME, 'a').get_attribute('href')  # Restoran bağlantısını al
+        restaurant_links.append(link)
+    except:
         continue
 
-# WebDriver'ı kapat
-driver.quit()
+# Eğer hiç restoran yoksa işlemi durdur
+if not restaurant_links:
+    print("Hiç restoran bulunamadı.")
+    driver.quit()
+    exit()
 
-# Çıktıyı CSV dosyasına kaydetmek istersen:
+print(f"Toplam {len(restaurant_links)} organik restoran bulundu.")
+
+# Restoran bilgilerini saklamak için liste
+restaurant_data = []  
+checked_links = set()  # Kontrol edilen restoranları saklamak için
+
+# **3. AŞAMA: Restoran bilgilerini çek**
+def get_restaurant_info(link):
+    driver.get(link)
+    time.sleep(5)  # Sayfanın yüklenmesini bekle
+
+    # Restoran ismini al
+    try:
+        name_element = driver.find_element(By.XPATH, "//h1[@class='DUwDvf lfPIob']")
+        restaurant_name = name_element.text
+    except:
+        restaurant_name = "Restoran adı bulunamadı"
+
+    # Adresi al
+    try:
+        address_element = driver.find_element(By.XPATH, "//span[text()='']/ancestor::div[@class='AeaXub']//div[@class='Io6YTe fontBodyMedium kR99db fdkmkc ']")
+        address = address_element.text
+    except:
+        address = "Adres bulunamadı"
+
+    # Telefon numarasını al
+    try:
+        phone_element = driver.find_element(By.XPATH, "//span[text()='']/ancestor::div[@class='AeaXub']//div[@class='Io6YTe fontBodyMedium kR99db fdkmkc ']")
+        phone_number = phone_element.text
+    except:
+        phone_number = "Telefon bulunamadı"
+
+    # Sonuçları listeye ekle
+    restaurant_data.append({
+        "Restoran Adı": restaurant_name,
+        "Adres": address,
+        "Telefon": phone_number,
+        "Link": link
+    })
+
+    print("\n------------------------------------")
+    print(f"Restoran Adı: {restaurant_name}")
+    print("Adres:", address)
+    print("Telefon Numarası:", phone_number)
+    print("------------------------------------\n")
+
+# **4. AŞAMA: Tüm restoranları sırayla kontrol et**
+for link in restaurant_links:
+    if link not in checked_links:
+        get_restaurant_info(link)
+        checked_links.add(link)
+
+# **5. AŞAMA: Yeniden tüm restoranları yükleyip eksik olanları al**
+while True:
+    print("Tüm restoranlar kontrol edildi, tekrar kontrol ediliyor...")
+    
+    driver.get(f'https://www.google.com/maps/search/{city}+{district}+restoranlar')
+    time.sleep(5)
+    scroll_until_all_restaurants_loaded()
+    
+    # Yeni restoran bağlantılarını al
+    new_restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
+    new_links = []
+    
+    for restaurant in new_restaurants:
+        try:
+            # **Sponsorlu restoranları kontrol et**
+            if restaurant.find_elements(By.CSS_SELECTOR, '.HlvSq'):
+                continue  # Sponsorluları atla
+
+            link = restaurant.find_element(By.TAG_NAME, 'a').get_attribute('href')
+            if link not in checked_links:
+                new_links.append(link)
+        except:
+            continue
+    
+    if not new_links:
+        print("Yeni restoran bulunamadı. İşlem tamamlandı.")
+        break
+
+    print(f"Yeni {len(new_links)} restoran bulundu. Bilgileri alınıyor...")
+
+    for link in new_links:
+        get_restaurant_info(link)
+        checked_links.add(link)
+
+# **6. AŞAMA: Verileri CSV'ye kaydet**
 df = pd.DataFrame(restaurant_data)
 df.to_csv(f"{city}_{district}_restoranlar.csv", index=False, encoding="utf-8")
 print("Veriler CSV dosyasına kaydedildi.")
+
+# WebDriver'ı kapat
+driver.quit()
