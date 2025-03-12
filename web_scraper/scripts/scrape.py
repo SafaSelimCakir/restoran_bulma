@@ -1,16 +1,31 @@
+import time
+import random
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-import time
 import pandas as pd
+import re
 
 # Kullanıcıdan şehir ve ilçe bilgisi al
 city = input("Bir İl Gir: ")
 district = input("Bir İlçe Gir: ")
 
+# User-Agent'lar için listeyi ekliyoruz
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/91.0.864.64 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:54.0) Gecko/20100101 Firefox/54.0",
+    "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:52.0) Gecko/20100101 Firefox/52.0"
+]
+
 # WebDriver'ı başlat
-driver = webdriver.Chrome()
+options = webdriver.ChromeOptions()
+options.add_argument("--disable-gpu")
+options.add_argument('--headless=new')
+options.add_argument(f"user-agent={random.choice(USER_AGENTS)}")
+driver = webdriver.Chrome(options=options)
 driver.get('https://www.google.com/maps')
 
 # Arama kutusuna restoran araması yap
@@ -18,142 +33,96 @@ search_query = f"{city} {district} restoranlar"
 search_box = driver.find_element(By.ID, 'searchboxinput')
 search_box.send_keys(search_query)
 search_box.send_keys(Keys.RETURN)
-
 time.sleep(5)  # Sonuçların yüklenmesini bekle
 
-# Sayfa kaydırma fonksiyonu (Tüm restoranları yüklemek için)
-def scroll_until_all_restaurants_loaded():
-    scrollable_div = driver.find_element(By.CSS_SELECTOR, 'div.m6QErb.DxyBCb.kA9KIf.dS8AEf.ecceSd')
-    last_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
-    current_restaurant_count = len(driver.find_elements(By.CSS_SELECTOR, '.Nv2PK'))  # Başlangıçtaki restoran sayısı
+# Sayfa kaydırma fonksiyonu
+def scroll_until_min_restaurants_loaded(min_count=10, max_scrolls=20):
+    # Sidebar elemanını buluyoruz (kaydırma yapılacak alan)
+    divSideBar = driver.find_element(By.CSS_SELECTOR, 'div.m6QErb.DxyBCb.kA9KIf.dS8AEf.ecceSd')
+    
+    # Kaydırma işlemi için gerekli olan önceki scroll height
+    previous_scroll_height = driver.execute_script("return arguments[0].scrollHeight", divSideBar)
 
-    while True:
-        driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
-        time.sleep(2)  # Yükleme süresi bekleniyor
-        new_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
+    # Sayfa kaydırma işlemi
+    print("Scrolling the sidebar to load")
 
-        new_restaurant_count = len(driver.find_elements(By.CSS_SELECTOR, '.Nv2PK'))  # Yeni restoran sayısı
-        
-        if new_restaurant_count == current_restaurant_count:  # Eğer restoran sayısı değişmediyse döngüyü bitir
-            break
-        
-        current_restaurant_count = new_restaurant_count  # Restoran sayısını güncelle
-        last_height = new_height  # Sayfa yüksekliğini güncelle
+# Restoranları kaydırarak yükle
+scroll_until_min_restaurants_loaded(10)
 
-# **1. AŞAMA: Restoranları tamamen yükle**
-scroll_until_all_restaurants_loaded()
-
-# **2. AŞAMA: Restoran bağlantılarını al ve sponsorluları filtrele**
+# Restoran bağlantılarını al
 restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
-restaurant_links = []  # Restoran bağlantılarını saklayacağımız liste
-
+restaurant_links = []
 for restaurant in restaurants:
     try:
-        # **Sponsorlu restoranları kontrol et**
-        if restaurant.find_elements(By.CSS_SELECTOR, '.HlvSq'):  # Google sponsor etiketi (varsa)
-            continue  # Sponsorluları atla
-
-        link = restaurant.find_element(By.TAG_NAME, 'a').get_attribute('href')  # Restoran bağlantısını al
+        link = restaurant.find_element(By.TAG_NAME, 'a').get_attribute('href')
         restaurant_links.append(link)
+        if len(restaurant_links) >= 10:  # İlk 10 restoranı al
+            break
     except:
         continue
 
-# Eğer hiç restoran yoksa işlemi durdur
-if not restaurant_links:
-    print("Hiç restoran bulunamadı.")
-    driver.quit()
-    exit()
-
-print(f"Toplam {len(restaurant_links)} organik restoran bulundu.")
+print(f"Toplam {len(restaurant_links)} restoran bulundu.")
 
 # Restoran bilgilerini saklamak için liste
-restaurant_data = []  
-checked_links = set()  # Kontrol edilen restoranları saklamak için
+restaurant_data = []
 
-# **3. AŞAMA: Restoran bilgilerini çek**
+# Web sitesinden e-posta adreslerini çeken fonksiyon
+def extract_email_from_website(url):
+    """Web sitesinden e-posta adreslerini çeker."""
+    if url == "N/A":
+        return "No Website"
+
+    try:
+        headers = {'User-Agent': random.choice(USER_AGENTS)}
+        response = requests.get(url, headers=headers, timeout=10)  # Timeout süresini artırdım
+        if response.status_code == 200:
+            emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", response.text)
+            return ", ".join(set(emails)) if emails else "No Email Found"
+    except requests.exceptions.RequestException as e:
+        print(f"Error accessing the site: {e}")
+        return "Error Accessing Site"
+
+    return "No Email Found"
+
+
+# Web sitesinden e-posta çekme fonksiyonu
 def get_restaurant_info(link):
     driver.get(link)
-    time.sleep(5)  # Sayfanın yüklenmesini bekle
+    time.sleep(3)  # Sayfanın yüklenmesini bekle
 
-    # Restoran ismini al
     try:
-        name_element = driver.find_element(By.XPATH, "//h1[@class='DUwDvf lfPIob']")
-        restaurant_name = name_element.text
+        name = driver.find_element(By.CSS_SELECTOR, 'h1.DUwDvf').text
     except:
-        restaurant_name = "Restoran adı bulunamadı"
-
-    # Adresi al
+        name = "Bilinmiyor"
     try:
-        address_element = driver.find_element(By.XPATH, "//span[text()='']/ancestor::div[@class='AeaXub']//div[@class='Io6YTe fontBodyMedium kR99db fdkmkc ']")
-        address = address_element.text
+        address = driver.find_element(By.XPATH, "//button[contains(@data-tooltip, 'Adres')]//div[2]").text
     except:
-        address = "Adres bulunamadı"
-
-    # Telefon numarasını al
+        address = "Adres Yok"
     try:
-        phone_element = driver.find_element(By.XPATH, "//span[text()='']/ancestor::div[@class='AeaXub']//div[@class='Io6YTe fontBodyMedium kR99db fdkmkc ']")
-        phone_number = phone_element.text
+        phone = driver.find_element(By.XPATH, "//button[contains(@data-tooltip, 'Telefon')]//div[2]").text
     except:
-        phone_number = "Telefon bulunamadı"
+        phone = "Telefon Yok"
+    try:
+        website = driver.find_element(By.XPATH, "//a[contains(@aria-label, 'Web sitesi')]").get_attribute("href")
+    except:
+        website = "N/A"
+    
+    # Web sitesinden e-posta adresini çek
+    email = extract_email_from_website(website)
 
-    # Sonuçları listeye ekle
-    restaurant_data.append({
-        "Restoran Adı": restaurant_name,
-        "Adres": address,
-        "Telefon": phone_number,
-        "Link": link
-    })
+    # Verileri listeye ekle
+    restaurant_data.append({"Restoran Adı": name, "Adres": address, "Telefon": phone, "Web Sitesi": website, "E-posta": email, "Link": link})
 
-    print("\n------------------------------------")
-    print(f"Restoran Adı: {restaurant_name}")
-    print("Adres:", address)
-    print("Telefon Numarası:", phone_number)
-    print("------------------------------------\n")
+    print(f"\n{name} | {address} | {phone} | {website} | {email}")
 
-# **4. AŞAMA: Tüm restoranları sırayla kontrol et**
+# İlk 10 restoranın bilgilerini çek
 for link in restaurant_links:
-    if link not in checked_links:
-        get_restaurant_info(link)
-        checked_links.add(link)
+    get_restaurant_info(link)
 
-# **5. AŞAMA: Yeniden tüm restoranları yükleyip eksik olanları al**
-while True:
-    print("Tüm restoranlar kontrol edildi, tekrar kontrol ediliyor...")
-    
-    driver.get(f'https://www.google.com/maps/search/{city}+{district}+restoranlar')
-    time.sleep(5)
-    scroll_until_all_restaurants_loaded()
-    
-    # Yeni restoran bağlantılarını al
-    new_restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
-    new_links = []
-    
-    for restaurant in new_restaurants:
-        try:
-            # **Sponsorlu restoranları kontrol et**
-            if restaurant.find_elements(By.CSS_SELECTOR, '.HlvSq'):
-                continue  # Sponsorluları atla
-
-            link = restaurant.find_element(By.TAG_NAME, 'a').get_attribute('href')
-            if link not in checked_links:
-                new_links.append(link)
-        except:
-            continue
-    
-    if not new_links:
-        print("Yeni restoran bulunamadı. İşlem tamamlandı.")
-        break
-
-    print(f"Yeni {len(new_links)} restoran bulundu. Bilgileri alınıyor...")
-
-    for link in new_links:
-        get_restaurant_info(link)
-        checked_links.add(link)
-
-# **6. AŞAMA: Verileri CSV'ye kaydet**
+# CSV'ye kaydet
 df = pd.DataFrame(restaurant_data)
 df.to_csv(f"{city}_{district}_restoranlar.csv", index=False, encoding="utf-8")
-print("Veriler CSV dosyasına kaydedildi.")
+print(f"{city}_{district}_restoranlar.csv Veriler CSV dosyasına kaydedildi.")
 
 # WebDriver'ı kapat
 driver.quit()
