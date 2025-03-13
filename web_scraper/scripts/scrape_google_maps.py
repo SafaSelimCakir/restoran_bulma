@@ -10,7 +10,7 @@ from selenium.webdriver.common.keys import Keys
 
 CITY = "Kocaeli Başiskele"
 CATEGORY = "resoranlar"
-SEARCH_QUERY = f"{CATEGORY} in {CITY}"
+SEARCH_QUERY = f"{CITY} in {CATEGORY}"
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
