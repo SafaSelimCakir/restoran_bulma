@@ -6,9 +6,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import pandas as pd
 import re
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import os
 
 city = input("Bir İl Gir: ")
 district = input("Bir İlçe Gir: ")
+location = "restoranlar"
+service = city + " " + district
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -24,31 +29,27 @@ options.add_argument(f"user-agent={random.choice(USER_AGENTS)}")
 driver = webdriver.Chrome(options=options)
 driver.get('https://www.google.com/maps')
 
-search_query = f"{city} {district} restoranlar"
-search_box = driver.find_element(By.ID, 'searchboxinput')
-search_box.send_keys(search_query)
-search_box.send_keys(Keys.RETURN)
-time.sleep(5) 
+print(f"Searching for: {city} in {district}")
+input_field = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="searchboxinput"]')))
+input_field.send_keys(service.lower() + ' ' + location.lower())
+input_field.send_keys(Keys.ENTER)
+print("Search submitted.")
 
-def scroll_until_min_restaurants_loaded(min_count=10, max_scrolls=20):
-    divSideBar = driver.find_element(By.CSS_SELECTOR, 'div.m6QErb.DxyBCb.kA9KIf.dS8AEf.ecceSd')
-    
-    previous_scroll_height = driver.execute_script("return arguments[0].scrollHeight", divSideBar)
+divSideBar = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='feed']")))
 
-    print("Scrolling the sidebar to load")
-
-scroll_until_min_restaurants_loaded(10)
+print("Scrolling the sidebar to load all of the results...")
+previous_scroll_height = 0
+while True:
+    driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", divSideBar)
+    time.sleep(3)
+    new_scroll_height = driver.execute_script("return arguments[0].scrollHeight", divSideBar)
+    if new_scroll_height == previous_scroll_height:
+        break
+    previous_scroll_height = new_scroll_height
+print("Finished scrolling.")
 
 restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
-restaurant_links = []
-for restaurant in restaurants:
-    try:
-        link = restaurant.find_element(By.TAG_NAME, 'a').get_attribute('href')
-        restaurant_links.append(link)
-        if len(restaurant_links) >= 10:  
-            break
-    except:
-        continue
+restaurant_links = [restaurant.find_element(By.TAG_NAME, 'a').get_attribute('href') for restaurant in restaurants if restaurant.find_element(By.TAG_NAME, 'a')]
 
 print(f"Toplam {len(restaurant_links)} restoran bulundu.")
 
@@ -58,24 +59,20 @@ def extract_email_from_website(url):
     """Web sitesinden e-posta adreslerini çeker."""
     if url == "N/A":
         return "No Website"
-
     try:
         headers = {'User-Agent': random.choice(USER_AGENTS)}
-        response = requests.get(url, headers=headers, timeout=10)  
+        response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", response.text)
             return ", ".join(set(emails)) if emails else "No Email Found"
     except requests.exceptions.RequestException as e:
         print(f"Error accessing the site: {e}")
         return "Error Accessing Site"
-
     return "No Email Found"
-
 
 def get_restaurant_info(link):
     driver.get(link)
-    time.sleep(3)  
-
+    time.sleep(3)
     try:
         name = driver.find_element(By.CSS_SELECTOR, 'h1.DUwDvf').text
     except:
@@ -94,16 +91,16 @@ def get_restaurant_info(link):
         website = "N/A"
     
     email = extract_email_from_website(website)
-
-    restaurant_data.append({"Restoran Adı": name, "Adres": address, "Telefon": phone, "Web Sitesi": website, "E-posta": email, "Link": link})
-
+    restaurant_data.append({"Restoran Adı": name, "Adres": address, "Telefon": phone, "E-posta": email, "Web Sitesi": website, "Link": link})
     print(f"\n{name} | {address} | {phone} | {website} | {email}")
 
 for link in restaurant_links:
     get_restaurant_info(link)
 
+os.makedirs("data", exist_ok=True)
 df = pd.DataFrame(restaurant_data)
-df.to_csv(f"{city}_{district}_restoranlar.csv", index=False, encoding="utf-8")
-print(f"{city}_{district}_restoranlar.csv Veriler CSV dosyasına kaydedildi.")
+csv_filename = f"data/{city}_{district}_restoranlar.csv"
+df.to_csv(csv_filename, index=False, encoding="utf-8")
+print(f"{csv_filename} Veriler CSV dosyasına kaydedildi.")
 
 driver.quit()
