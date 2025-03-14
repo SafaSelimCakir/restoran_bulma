@@ -73,7 +73,7 @@ def update_missing_emails(csv_path):
     output_dir = "guncellenmiş data"
     os.makedirs(output_dir, exist_ok=True)  
 
-    new_file_name = f"guncellemis_{os.path.splitext(os.path.basename(csv_path))[0]}.csv"
+    new_file_name = f"guncellenmis_{os.path.splitext(os.path.basename(csv_path))[0]}.csv"
     new_csv_path = os.path.join(output_dir, new_file_name)
 
     df.to_csv(new_csv_path, index=False, encoding="utf-8")
