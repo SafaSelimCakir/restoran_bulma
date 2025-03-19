@@ -57,10 +57,16 @@ def get_restaurant_info(driver, link):
     return {"Restoran Adı": name, "Adres": address, "Telefon": phone, "E-posta": email, "Web Sitesi": website, "Link": link}
 
 def main():
-    city = input("Bir İl Gir: ")
-    district = input("Bir İlçe Gir: ")
+    city = input("Bir İl Gir: ").strip()
+    district = input("Bir İlçe Gir: ").strip()
     location = "restoranlar"
-    service = city + " " + district
+
+    
+    if district:
+        service = f"{city} {district}"
+    else:
+        service = city
+        
     options = webdriver.ChromeOptions()
     options.add_argument('--headless=new')
     options.add_argument(f"user-agent={get_random_user_agent()}")
@@ -98,3 +104,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+os.system("test.py")
+
+os.system("epostaguncelleme.py")
