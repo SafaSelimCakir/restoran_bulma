@@ -58,27 +58,27 @@ def get_restaurant_info(driver, link):
 
 def main():
     city = input("Bir İl Gir: ").strip()
-    district = input("Bir İlçe Gir: ").strip()
+    district = input("Bir İlçe Gir (Boş bırakabilirsiniz): ").strip()
     location = "restoranlar"
 
-    
     if district:
         service = f"{city} {district}"
+        csv_filename = f"data/{city}_{district}_restoranlar.csv"
     else:
         service = city
-        
+        csv_filename = f"data/{city}_restoranlar.csv"
+
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless=new')
     options.add_argument(f"user-agent={get_random_user_agent()}")
     driver = webdriver.Chrome(options=options)
     driver.get('https://www.google.com/maps')
-    
+
     input_field = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="searchboxinput"]')))
     input_field.send_keys(service.lower() + ' ' + location.lower())
     input_field.send_keys(Keys.ENTER)
-    
+
     divSideBar = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='feed']")))
-    
+
     previous_scroll_height = 0
     while True:
         driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", divSideBar)
@@ -87,24 +87,19 @@ def main():
         if new_scroll_height == previous_scroll_height:
             break
         previous_scroll_height = new_scroll_height
-    
+
     restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
     restaurant_links = [r.find_element(By.TAG_NAME, 'a').get_attribute('href') for r in restaurants if r.find_element(By.TAG_NAME, 'a')]
-    
+
     restaurant_data = []
     for link in restaurant_links:
         restaurant_data.append(get_restaurant_info(driver, link))
-    
+
     os.makedirs("data", exist_ok=True)
     df = pd.DataFrame(restaurant_data)
-    csv_filename = f"data/{city}_{district}_restoranlar.csv"
     df.to_csv(csv_filename, index=False, encoding="utf-8")
     print(f"{csv_filename} Veriler CSV dosyasına kaydedildi.")
     driver.quit()
 
 if __name__ == "__main__":
     main()
-
-os.system("test.py")
-
-os.system("epostaguncelleme.py")

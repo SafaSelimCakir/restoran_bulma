@@ -84,5 +84,3 @@ csv_file = input("filtrelemek istediğiniz CSV dosyasının adını girin (data 
 csv_path = os.path.join("data", csv_file)
 
 update_missing_emails(csv_path)
-
-os.system("test.py")

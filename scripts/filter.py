@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 
-blacklist_domains = ["sentry.wixpress.com", "sentry-next.wixpress.com", "sentry.io" ,"jpg" ,"png", "support.yandex.ru" ,"yandex" ,"yakalamac"]
+blacklist_domains = ["sentry.wixpress.com", "sentry-next.wixpress.com", "sentry.io" ,"jpg" ,"png", "support.yandex.ru" ,"yandex" ,"yakalamac" ,"addresshere","Sb","fb","example","mapquest","evendo","surecart","micahrich"]
 
 email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
