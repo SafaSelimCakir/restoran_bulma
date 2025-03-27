@@ -25,7 +25,7 @@ def extract_email_from_website(url):
         headers = {'User-Agent': get_random_user_agent()}
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
-            emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", response.text)
+            emails = re.findall(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", response.text)
             if emails:
                 return ", ".join(set(emails))
         return "No Email Found"
@@ -67,9 +67,9 @@ def get_districts(city):
     return []
 
 def get_all_restaurants(city, districts):
+    start_time = time.time()
     search_terms = ["restoran", "cafe", "lokanta", "yemek", "restaurant"]
-    restaurant_links = set()  
-
+    restaurant_links = set()
     options = webdriver.ChromeOptions()
     options.add_argument('--headless=new')
     options.add_argument(f"user-agent={get_random_user_agent()}")
@@ -79,29 +79,29 @@ def get_all_restaurants(city, districts):
     for district in districts:
         service = f"{city} {district}"
         print(f"{district} ilçesinden veri çekiliyor...")
-
         for term in search_terms:
             input_field = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="searchboxinput"]')))
             input_field.clear()
             input_field.send_keys(f"{service} {term}")
             input_field.send_keys(Keys.ENTER)
             time.sleep(5)
-
             try:
                 divSideBar = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='feed']")))
             except:
                 print(f"{district} için sonuç bulunamadı.")
                 continue
-
             previous_scroll_height = 0
             while True:
-                driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", divSideBar)
-                time.sleep(4)
-                new_scroll_height = driver.execute_script("return arguments[0].scrollHeight", divSideBar)
-                if new_scroll_height == previous_scroll_height:
-                    break
-                previous_scroll_height = new_scroll_height
-
+                try:
+                    driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", divSideBar)
+                    time.sleep(4)
+                    new_scroll_height = driver.execute_script("return arguments[0].scrollHeight", divSideBar)
+                    if new_scroll_height == previous_scroll_height:
+                        break
+                    previous_scroll_height = new_scroll_height
+                except:
+                    print("Kaydırma işlemi sırasında hata oluştu, tekrar deneniyor...")
+                    continue
             restaurants = driver.find_elements(By.CSS_SELECTOR, '.Nv2PK')
             for r in restaurants:
                 try:
@@ -110,26 +110,23 @@ def get_all_restaurants(city, districts):
                         restaurant_links.add(link)
                 except:
                     continue
-
     print(f"Toplam {len(restaurant_links)} restoran bulundu.")
-
     restaurant_data = []
     for link in restaurant_links:
         restaurant_data.append(get_restaurant_info(driver, link))
-
     os.makedirs("data", exist_ok=True)
-    csv_filename = f"data/{city}_tum_restoranlar.csv"
+    csv_filename = f"test/test3/{city}_tum_restoranlar.csv"
     df = pd.DataFrame(restaurant_data)
     df.to_csv(csv_filename, index=False, encoding="utf-8")
+    end_time = time.time()
     print(f"Tüm ilçelerdeki restoranlar {csv_filename} dosyasına kaydedildi.")
+    print(f"Çalışma süresi: {end_time - start_time:.2f} saniye")
     driver.quit()
 
 if __name__ == "__main__":
     city = input("Bir İl Gir: ").strip()
     districts = get_districts(city)
-    
     if not districts:
         district = input("Bir İlçe Gir (Boş bırakabilirsiniz): ").strip()
         districts = [district] if district else [city]
-
     get_all_restaurants(city, districts)
