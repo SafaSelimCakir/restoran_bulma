@@ -37,49 +37,64 @@ def extract_email_from_website(url):
 
 def get_restaurant_info(link):
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless")  # Arka planda çalıştır
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     options.add_argument(f"user-agent={get_random_user_agent()}")
     driver = webdriver.Chrome(options=options)
     
-    driver.get(link)
-    wait = WebDriverWait(driver, 10)
-    
     try:
-        name = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'h1.DUwDvf'))).text
-    except:
-        name = "Bilinmiyor"
-    
-    try:
-        address = driver.find_element(By.XPATH, "//button[contains(@data-tooltip, 'Adres')]//div[2]").text
-    except:
-        address = "Adres Yok"
-    
-    try:
-        phone = driver.find_element(By.XPATH, "//button[contains(@data-tooltip, 'Telefon')]//div[2]").text
-    except:
-        phone = "Telefon Yok"
-    
-    try:
-        website = driver.find_element(By.XPATH, "//a[contains(@aria-label, 'Web sitesi')]").get_attribute("href")
-    except:
-        website = "N/A"
-    
-    email = extract_email_from_website(website)
-    driver.quit()
-    return {"Restoran Adı": name, "Adres": address, "Telefon": phone, "E-posta": email, "Web Sitesi": website, "Link": link}
+        driver.get(link)
+        wait = WebDriverWait(driver, 10)
+
+        try:
+            name = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'h1.DUwDvf'))).text
+        except:
+            name = "Bilinmiyor"
+
+        try:
+            address = driver.find_element(By.XPATH, "//button[contains(@data-tooltip, 'Adres')]//div[2]").text
+        except:
+            address = "Adres Yok"
+
+        try:
+            phone = driver.find_element(By.XPATH, "//button[contains(@data-tooltip, 'Telefon')]//div[2]").text
+        except:
+            phone = "Telefon Yok"
+
+        try:
+            website = driver.find_element(By.XPATH, "//a[contains(@aria-label, 'Web sitesi')]").get_attribute("href")
+        except:
+            website = "N/A"
+
+        email = extract_email_from_website(website) if website != "N/A" else "No Website"
+
+        return {
+            "Restoran Adı": name,
+            "Adres": address,
+            "Telefon": phone,
+            "E-posta": email,
+            "Web Sitesi": website,
+            "Link": link
+        }
+
+    finally:
+        driver.quit()
 
 def scroll_to_load_all_results(driver, divSideBar):
     wait = WebDriverWait(driver, 5)
     previous_scroll_height = 0
     while True:
         driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", divSideBar)
-        
+        time.sleep(2)
         try:
-            wait.until(lambda d: d.execute_script("return arguments[0].scrollHeight", divSideBar) > previous_scroll_height)
+            new_scroll_height = driver.execute_script("return arguments[0].scrollHeight", divSideBar)
+            if new_scroll_height == previous_scroll_height:
+                break
+            previous_scroll_height = new_scroll_height
         except:
-            break  # Yeni içerik yüklenmezse çık
-        
-        previous_scroll_height = driver.execute_script("return arguments[0].scrollHeight", divSideBar)
+            break
 
 def main():
     start_time = time.time()
@@ -87,7 +102,7 @@ def main():
     city = input("Bir İl Gir: ").strip()
     district = input("Bir İlçe Gir (Boş bırakabilirsiniz): ").strip()
     location = "restoranlar"
-    
+
     if district:
         service = f"{city} {district}"
         csv_filename = f"test/test1/{city}_{district}_restoranlar.csv"
@@ -96,26 +111,44 @@ def main():
         csv_filename = f"test/test1/{city}_restoranlar.csv"
     
     options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     options.add_argument(f"user-agent={get_random_user_agent()}")
+    
     driver = webdriver.Chrome(options=options)
     driver.get('https://www.google.com/maps')
     
     input_field = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="searchboxinput"]')))
+    input_field.clear()
     input_field.send_keys(service.lower() + ' ' + location.lower())
     input_field.send_keys(Keys.ENTER)
-    
+
     divSideBar = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='feed']")))
     
     scroll_to_load_all_results(driver, divSideBar)
-    
-    restaurant_links = [r.get_attribute('href') for r in driver.find_elements(By.CSS_SELECTOR, '.Nv2PK a')]
+
+    restaurant_links = []
+    for r in driver.find_elements(By.CSS_SELECTOR, '.Nv2PK'):
+        try:
+            link = r.find_element(By.TAG_NAME, 'a').get_attribute('href')
+            if link and link not in restaurant_links:
+                restaurant_links.append(link)
+        except:
+            continue
+
     driver.quit()
     
-    restaurant_data = []
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    restaurant_links = list(set(restaurant_links))  # yinelenenleri temizle
+
+    print(f"{len(restaurant_links)} restoran bulundu, bilgiler çekiliyor...")
+
+    os.makedirs("test/test1", exist_ok=True)
+    
+    with ThreadPoolExecutor(max_workers=10) as executor:
         restaurant_data = list(executor.map(get_restaurant_info, restaurant_links))
     
-    os.makedirs("data", exist_ok=True)
     df = pd.DataFrame(restaurant_data)
     df.to_csv(csv_filename, index=False, encoding="utf-8")
     
