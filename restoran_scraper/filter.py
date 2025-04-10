@@ -1,7 +1,11 @@
 import pandas as pd
 import os
 
-blacklist_domains = ["sentry.wixpress.com", "sentry-next.wixpress.com", "sentry.io" ,"jpg" ,"png", "support.yandex.ru" ,"yandex" ,"yakalamac" ,"addresshere","Sb","fb","example","mapquest","evendo","surecart","micahrich"]
+blacklist_domains = ["sentry.wixpress.com", "sentry-next.wixpress.com", "sentry.io" ,"jpg" ,"png", "support.yandex.ru" ,"yandex" 
+                     ,"yakalamac" ,"addresshere","Sb","fb","example","mapquest","evendo","surecart","micahrich","polyfill",
+                     "core-js-bundle@3.2.1", "react@18.3.1","info@fenerbahcetodori.com", "lodash@4.17.21, react-dom@18.3.1",
+                     "lodash@4.17.21"," react-dom@18.3.1","dave@lab6.com"," typesetit@att.net", "hi@typemade.mx","readmore-js@2.2.1",
+                     "chart.js@4.4.7", "bootstrap@5.3.3", "i18next@24.2.1, axios@1.7.9","i18next@24.2.1", "axios@1.7.9","bootstrap@4.6.2"]
 
 email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
@@ -20,7 +24,7 @@ def filter_wixpress_emails(email_str):
     return ", ".join(filtered_emails) if filtered_emails else ""
 
 def filter_no_email_entries():
-    csv_file = input("Filtrelemek istediğiniz CSV dosyasının adını girin (data veya güncellenmiş data klasöründe olmalı): ")
+    csv_file = input("Filtrelemek istediğiniz CSV dosyasının adını girin (klasörde olmalı): ")
 
     csv_paths = [
         os.path.join("data", csv_file),

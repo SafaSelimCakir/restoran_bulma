@@ -124,7 +124,12 @@ def main():
         return
 
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless=new')
+    #options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-images")
+    #prefs = {"profile.managed_default_content_settings.images": 2}
+    #options.add_experimental_option("prefs", prefs)
     options.add_argument(f"user-agent={get_random_user_agent()}")
     driver = webdriver.Chrome(options=options)
     driver.get('https://www.google.com/maps')
