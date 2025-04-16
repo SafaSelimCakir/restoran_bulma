@@ -92,6 +92,6 @@ def scrape_google_maps(city, district):
     os.makedirs("outputs", exist_ok=True)
     filename = f"outputs/{city}_{district}_restoranlar.csv"
     pd.DataFrame(results).to_csv(filename, index=False, encoding="utf-8")
-    print(f"\n✅ Kaydedildi: {filename}")
+    print(f"\n Kaydedildi: {filename}")
 
     driver.quit()

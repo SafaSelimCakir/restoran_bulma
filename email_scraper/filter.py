@@ -6,7 +6,7 @@ blacklist_domains = ["sentry.wixpress.com", "sentry-next.wixpress.com", "sentry.
                      "core-js-bundle@3.2.1", "react@18.3.1","info@fenerbahcetodori.com", "lodash@4.17.21, react-dom@18.3.1",
                      "lodash@4.17.21"," react-dom@18.3.1","dave@lab6.com"," typesetit@att.net", "hi@typemade.mx","readmore-js@2.2.1",
                      "chart.js@4.4.7", "bootstrap@5.3.3", "i18next@24.2.1, axios@1.7.9","i18next@24.2.1", "axios@1.7.9","bootstrap@4.6.2",
-                     "bootstrap","leaflet","fancybox","wght","popup","aos","react-dom","select2"]
+                     "bootstrap","leaflet","fancybox","wght","popup","aos","react-dom","select2","bulunamadı","yok","hatası","erişilemedi"]
 
 email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
@@ -36,7 +36,7 @@ def filter_no_email_entries():
     csv_path = next((path for path in csv_paths if os.path.exists(path)), None)
 
     if not csv_path:
-        print(f"Hata: {csv_file} dosyası 'data' veya 'güncellenmiş data' klasörlerinde bulunamadı!")
+        print(f"Hata: {csv_file} dosyası klasörlerinde bulunamadı!")
         return
     
     df = pd.read_csv(csv_path)
@@ -56,9 +56,6 @@ def filter_no_email_entries():
     df_filtered["E-posta"] = df_filtered["E-posta"].apply(filter_wixpress_emails)
 
     df_filtered = df_filtered[df_filtered["E-posta"] != ""]
-
-    # Aynı restoran adını taşıyan kayıtları teke indir
-    df_filtered = df_filtered.drop_duplicates(subset="Ad", keep="first")
 
     invalid_emails = df_filtered[~df_filtered["E-posta"].astype(str).str.match(email_regex, na=False)]
 

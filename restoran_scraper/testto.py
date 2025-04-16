@@ -1,43 +1,90 @@
-import requests
-from googlesearch import search
-from bs4 import BeautifulSoup
+import os
+import time
 import re
+import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+from utils.browser import get_driver
+from utils.email import get_restaurant_info
 
-def find_restaurant_email(restaurant_name, city):
-    # Google'da restoran adını ve şehri arama
-    query = f"{restaurant_name} {city} site"
-    search_results = search(query, num_results=5)  # İlk 5 sonucu al
+def scroll_to_bottom(driver, container):
+    prev_height = -1
+    stable_scrolls = 0
+    while stable_scrolls < 3:  # Scroll sabitlik eşiği azaltıldı
+        driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", container)
+        time.sleep(1.2)  # Bekleme süresi azaltıldı
+        new_height = driver.execute_script("return arguments[0].scrollHeight", container)
+        if new_height == prev_height:
+            stable_scrolls += 1
+        else:
+            stable_scrolls = 0
+        prev_height = new_height
 
-    for url in search_results:
+def scrape_city_district(driver, city, district):
+    terms = ["restoran", "cafe", "yemek"]  # Daha az ama kapsayıcı arama terimleri
+    location = f"{city} {district}".strip()
+    all_links = set()
+
+    for term in terms:
         try:
-            # Sayfayı çekme
-            response = requests.get(url)
-            response.raise_for_status()
+            searchbox = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "searchboxinput")))
+            searchbox.clear()
+            searchbox.send_keys(f"{location} {term}")
+            searchbox.send_keys(Keys.ENTER)
+            time.sleep(4)
 
-            # Sayfayı analiz etme
-            soup = BeautifulSoup(response.text, 'html.parser')
+            sidebar = WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='feed']"))
+            )
+            scroll_to_bottom(driver, sidebar)
 
-            # E-posta adresini arama (HTML'de genellikle mailto: ile bulunur)
-            emails = set(re.findall(r"mailto:([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", str(soup)))
-
-            if emails:
-                return emails  # Bulunduğu takdirde e-posta döndürülür
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching {url}: {e}")
+            places = driver.find_elements(By.CSS_SELECTOR, "a.hfpxzc")
+            for place in places:
+                href = place.get_attribute("href")
+                if href and "www.google.com/maps/place" in href:
+                    all_links.add(href)
+        except TimeoutException:
+            print(f"{location} - Arama veya liste yüklenemedi.")
             continue
 
-    return None  # E-posta bulunamazsa None döner
+    print(f"{location} - {len(all_links)} sonuç bulundu.")
 
-def main():
-    restaurant_name = input("Restoran adı: ")
-    city = input("Şehir: ")
+    def fetch_info(link):
+        return get_restaurant_info(driver, link)  # Eğer driver içinde çalışıyorsa paralel yapıdan kaçın
 
-    emails = find_restaurant_email(restaurant_name, city)
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        data = list(executor.map(fetch_info, all_links))
 
-    if emails:
-        print(f"Bulunan e-posta adresleri: {emails}")
-    else:
-        print("E-posta adresi bulunamadı.")
+    os.makedirs("outputs", exist_ok=True)
+    filename = f"outputs/{city}_{district or 'genel'}_restoranlar.csv"
+    pd.DataFrame(data).to_csv(filename, index=False, encoding="utf-8")
+    print(f"{filename} kaydedildi.\n")
+
+def run_scraper():
+    cities = input("Şehir(ler): ").strip().split(",")
+    districts = input("İlçe(ler): ").strip().split(",") or [""] * len(cities)
+
+    if len(cities) != len(districts):
+        print("Şehir ve ilçe sayısı eşleşmiyor!")
+        return
+
+    start_time = time.time()
+
+    driver = get_driver()
+    driver.get("https://www.google.com/maps")
+    time.sleep(3)
+
+    for city, district in zip(cities, districts):
+        scrape_city_district(driver, city.strip(), district.strip())
+
+    driver.quit()
+
+    total_time = time.time() - start_time
+    print(f"Toplam çalışma süresi: {total_time:.2f} saniye")
 
 if __name__ == "__main__":
-    main()
+    run_scraper()
