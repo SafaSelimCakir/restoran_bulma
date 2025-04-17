@@ -12,30 +12,18 @@ from utils.browser import get_driver
 from utils.email import get_restaurant_info
 
 
-from selenium.common.exceptions import StaleElementReferenceException, NoSuchElementException
-
-def scroll_to_bottom(driver, container_xpath="//div[@role='feed']", pause_time=1.2, max_stable_scrolls=3):
-    last_height = -1
+def scroll_to_bottom(driver, container):
+    prev_height = -1
     stable_scrolls = 0
-
-    while stable_scrolls < max_stable_scrolls:
-        try:
-            container = driver.find_element(By.XPATH, container_xpath)
-            driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", container)
-            time.sleep(pause_time)
-            new_height = driver.execute_script("return arguments[0].scrollHeight", container)
-
-            if new_height == last_height:
-                stable_scrolls += 1
-            else:
-                stable_scrolls = 0
-            last_height = new_height
-
-        except (StaleElementReferenceException, NoSuchElementException):
-            print("Scroll sırasında element kayboldu, tekrar deneniyor...")
-            time.sleep(1)
-            continue
-
+    while stable_scrolls < 3:
+        driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", container)
+        time.sleep(1.2)
+        new_height = driver.execute_script("return arguments[0].scrollHeight", container)
+        if new_height == prev_height:
+            stable_scrolls += 1
+        else:
+            stable_scrolls = 0
+        prev_height = new_height
 
 
 def scrape_city_district(driver, city, district):
@@ -54,7 +42,7 @@ def scrape_city_district(driver, city, district):
             sidebar = WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='feed']"))
             )
-            scroll_to_bottom(driver, container_xpath="//div[@role='feed']")
+            scroll_to_bottom(driver, sidebar)
 
             places = driver.find_elements(By.CSS_SELECTOR, "a.hfpxzc")
             for place in places:
